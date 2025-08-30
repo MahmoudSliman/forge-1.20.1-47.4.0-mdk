@@ -1,15 +1,16 @@
 package com.ghost.test;
 
-import com.ghost.test.items.Items;
-import com.ghost.test.items.Items;
+import com.ghost.test.killcounter.WaveKillCounter;
+import com.ghost.test.waves.Items;
+import com.ghost.test.waves.ModCommands;
+import com.ghost.test.waves.WaveItem;
 import com.mojang.logging.LogUtils;
-import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
-import net.minecraft.world.item.Item;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
-import net.minecraftforge.event.server.ServerStartingEvent;
+import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -18,11 +19,9 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 
-// The value here should match an entry in the META-INF/mods.toml file
 @Mod(Test.MOD_ID)
 public class Test
 {
-    // Define mod id in a common place for everything to reference
     public static final String MOD_ID = "testmod";
     public static final Logger LOGGER = LogUtils.getLogger();
 
@@ -30,38 +29,44 @@ public class Test
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         Items.register(modEventBus);
+        new WaveKillCounter();
+
 
         modEventBus.addListener(this::commonSetup);
 
         MinecraftForge.EVENT_BUS.register(this);
         modEventBus.addListener(this::addCreative);
+
+        MinecraftForge.EVENT_BUS.register(new Object() {
+            @SubscribeEvent
+            public void onServerTick(TickEvent.ServerTickEvent event) {
+                WaveItem.waveManager.tick(); // الآن التأخير بين كل Zombie متحكم فيه
+            }
+        });
+
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {}
 
-    // Add the example block item to the building blocks tab
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
-        if (event.getTabKey()== CreativeModeTabs.INGREDIENTS){
+        if (event.getTabKey() == CreativeModeTabs.INGREDIENTS) {
             event.accept(Items.RADAR);
             event.accept(Items.BLOCK_MARKER);
         }
     }
 
-    // You can use SubscribeEvent and let the Event Bus discover methods to call
+    // تسجيل الأوامر هنا
     @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event)
-    {
-
+    public void onRegisterCommands(RegisterCommandsEvent event) {
+        ModCommands.registerCommands(event.getDispatcher());
     }
 
-    // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
-    @Mod.EventBusSubscriber(modid = MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
-    public static class ClientModEvents
-    {
-        @SubscribeEvent
-        public static void onClientSetup(FMLClientSetupEvent event)
-        {
+    @SubscribeEvent
+    public void onServerStarting(net.minecraftforge.event.server.ServerStartingEvent event) {}
 
-        }
+    @Mod.EventBusSubscriber(modid = MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+    public static class ClientModEvents {
+        @SubscribeEvent
+        public static void onClientSetup(FMLClientSetupEvent event) {}
     }
 }

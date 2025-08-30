@@ -1,4 +1,4 @@
-package com.ghost.test.items;
+package com.ghost.test.waves;
 
 import com.ghost.test.Test;
 import net.minecraft.world.item.Item;

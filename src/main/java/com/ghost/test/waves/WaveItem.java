@@ -1,4 +1,4 @@
-package com.ghost.test.items;
+package com.ghost.test.waves;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -13,7 +13,7 @@ import java.util.List;
 
 public class WaveItem extends Item {
 
-    private static final WaveManager waveManager = new WaveManager();
+    public static final WaveManager waveManager = new WaveManager();
 
     public WaveItem(Properties properties) {
         super(properties);
@@ -22,6 +22,11 @@ public class WaveItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         if (!level.isClientSide) {
+            if (waveManager.isWaveActive()) {
+                player.sendSystemMessage(Component.literal("⚠ Wave شغالة دلوقتي! استنى لما تخلص."));
+                return InteractionResultHolder.sidedSuccess(player.getItemInHand(hand), level.isClientSide());
+            }
+
             List<BlockPos> markers = BlockMarkerItem.getSavedPositions();
 
             if (!markers.isEmpty()) {
@@ -37,6 +42,4 @@ public class WaveItem extends Item {
 
         return InteractionResultHolder.sidedSuccess(player.getItemInHand(hand), level.isClientSide());
     }
-
-
 }

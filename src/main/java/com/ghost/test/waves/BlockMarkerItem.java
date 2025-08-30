@@ -1,4 +1,4 @@
-package com.ghost.test.items;
+package com.ghost.test.waves;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -45,4 +45,6 @@ public class BlockMarkerItem extends Item {
     public static void clearSavedPositions() {
         savedPositions.clear();
     }
+
+
 }
