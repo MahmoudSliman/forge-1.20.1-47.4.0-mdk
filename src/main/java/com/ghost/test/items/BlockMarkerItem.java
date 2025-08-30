@@ -8,10 +8,13 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class BlockMarkerItem extends Item {
 
-
-    private static BlockPos savedPos = null;
+    // نخزن أكثر من إحداثية
+    private static final List<BlockPos> savedPositions = new ArrayList<>();
 
     public BlockMarkerItem(Properties properties) {
         super(properties);
@@ -24,16 +27,22 @@ public class BlockMarkerItem extends Item {
         BlockPos pos = context.getClickedPos(); // مكان البلوك اللي ضغط عليه
 
         if (!level.isClientSide && player != null) {
-            savedPos = pos; // نحفظ الإحداثيات
+            savedPositions.add(pos); // نضيف الإحداثيات للقائمة
             player.sendSystemMessage(Component.literal(
-                    "تم تسجيل البلوك عند: X=" + pos.getX() + " Y=" + pos.getY() + " Z=" + pos.getZ()
+                    "تم تسجيل الماركر عند: X=" + pos.getX() + " Y=" + pos.getY() + " Z=" + pos.getZ()
             ));
         }
 
         return InteractionResult.SUCCESS;
     }
 
-    public static BlockPos getSavedPos() {
-        return savedPos;
+    // نرجع كل الماركرز
+    public static List<BlockPos> getSavedPositions() {
+        return savedPositions;
+    }
+
+    // لو عايز تمسح كل الماركرز
+    public static void clearSavedPositions() {
+        savedPositions.clear();
     }
 }

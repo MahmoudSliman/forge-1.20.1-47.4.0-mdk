@@ -9,6 +9,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
+import java.util.List;
+
 public class WaveItem extends Item {
 
     private static final WaveManager waveManager = new WaveManager();
@@ -20,20 +22,21 @@ public class WaveItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         if (!level.isClientSide) {
-            BlockPos savedPos = BlockMarkerItem.getSavedPos(); // نجيب إحداثيات الماركر
+            List<BlockPos> markers = BlockMarkerItem.getSavedPositions();
 
-            if (savedPos != null) {
-                // يرسبن الزومبي عند المكان اللي حددته بالماركر
-                waveManager.startNextWave(level, savedPos.above());
+            if (!markers.isEmpty()) {
+                waveManager.startNextWave(level, markers);
                 player.sendSystemMessage(Component.literal(
                         "بدأ لاويف رقم " + waveManager.getCurrentWave() +
-                                " عند X=" + savedPos.getX() + " Y=" + savedPos.getY() + " Z=" + savedPos.getZ()
+                                " عند " + markers.size() + " ماركرز مسجلة."
                 ));
             } else {
-                // لو مفيش ماركر متسجل
-                player.sendSystemMessage(Component.literal("⚠ لازم تحدد مكان الأول باستخدام Block Marker!"));
+                player.sendSystemMessage(Component.literal("⚠ لازم تحدد على الأقل ماركر واحد!"));
             }
         }
-        return super.use(level, player, hand);
+
+        return InteractionResultHolder.sidedSuccess(player.getItemInHand(hand), level.isClientSide());
     }
+
+
 }
