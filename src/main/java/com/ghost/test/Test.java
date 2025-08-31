@@ -40,7 +40,8 @@ public class Test
         MinecraftForge.EVENT_BUS.register(new Object() {
             @SubscribeEvent
             public void onServerTick(TickEvent.ServerTickEvent event) {
-                WaveItem.waveManager.tick(); // الآن التأخير بين كل Zombie متحكم فيه
+                WaveItem.waveManager.tick();
+                WaveItem.waveManager.checkWaveStatus();
             }
         });
 
