@@ -1,7 +1,14 @@
 package com.ghost.test.waves;
 
 import com.ghost.test.killcounter.WaveKillCounter;
+import com.ghost.test.mob.WaveMobRegistry;
+import com.ghost.test.mob.WaveMobType;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.player.Player;
@@ -41,19 +48,68 @@ public class WaveManager {
         this.markerPositions = markers;
         this.currentLevel = level;
 
-        numberOfZombies = currentWave * 3;
+        numberOfZombies = currentWave * 5;
         Random random = new Random();
 
         // Reset kills لكل لاعب في بداية الويف
-        for (Player player : level.players()) {
-            WaveKillCounter.resetKills(player);
-            player.sendSystemMessage(
-                    net.minecraft.network.chat.Component.literal("⚔️ Wave " + currentWave + " بدأت! عدد الزومبي: " + numberOfZombies)
-            );
+        for (Player p : currentLevel.players()) {
+            if (p instanceof ServerPlayer player) {
+                // Title
+                player.connection.send(
+                        new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
+                                Component.literal(" Wave " + currentWave + " Started! : ")
+                                        .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD) // لون دهبي وخط عريض
+                        )
+                );
+
+                // Subtitle
+                player.connection.send(
+                        new net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket(
+                                Component.literal("🎉 Get Ready!!!!")
+                                        .withStyle(ChatFormatting.AQUA) // لون أزرق فاتح
+                        )
+                );
+
+                // Animation (fade in/out)
+                player.connection.send(
+                        new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(
+                                10,   // fade in
+                                60,   // stay
+                                10    // fade out
+                        )
+                );
+            }
         }
 
-        // إعداد جميع الزومبي بدون إضافتهم للعالم بعد
-        for (int i = 0; i < numberOfZombies; i++) {
+
+        // الأول نضيف الأنواع الخاصة
+        for (WaveMobType mobType : WaveMobRegistry.MOB_TYPES) {
+            if (currentWave >= mobType.minWave) {
+                int count = Math.min(mobType.maxPerWave, currentWave); // عدد الأنواع الخاصة
+                for (int i = 0; i < count; i++) {
+                    var mob = mobType.type.create(level);
+                    if (mob != null) {
+                        // تطبيق الإعدادات (health, speed)
+                        if (mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH) != null) {
+                            mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(mobType.health);
+                        }
+                        mob.setHealth((float) mobType.health);
+
+                        if (mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED) != null) {
+                            mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED).setBaseValue(mobType.speed);
+                        }
+
+                        mob.getPersistentData().putBoolean("WaveZombie", true);
+                        allZombies.add((Zombie) mob);
+                        activeZombies.add((Zombie) mob);
+                    }
+                }
+            }
+        }
+
+// نملأ الباقي بزومبي عادي
+        int remaining = numberOfZombies - allZombies.size();
+        for (int i = 0; i < remaining; i++) {
             Zombie zombie = EntityType.ZOMBIE.create(level);
             if (zombie != null) {
                 zombie.getPersistentData().putBoolean("WaveZombie", true);
@@ -61,6 +117,7 @@ public class WaveManager {
                 activeZombies.add(zombie);
             }
         }
+
     }
 
     // دالة تتنادى كل tick للتحكم في الـspawn بالتأخير
@@ -89,9 +146,7 @@ public class WaveManager {
         if (!waveActive) return;
 
         int kills = WaveKillCounter.getKills(player);
-        player.sendSystemMessage(
-                net.minecraft.network.chat.Component.literal("قتلت: " + kills + " / " + numberOfZombies)
-        );
+
 
         if (kills >= numberOfZombies) {
             endWave();
@@ -111,11 +166,27 @@ public class WaveManager {
     private void endWave() {
         waveActive = false;
 
-        for (Player player : currentLevel.players()) {
-            player.sendSystemMessage(
-                    net.minecraft.network.chat.Component.literal("✅ Wave " + currentWave + " انتهت!")
-            );
+        for (Player p : currentLevel.players()) {
+            if (p instanceof ServerPlayer player) {
+                player.connection.send(
+                        new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
+                                Component.literal("✅ Wave " + currentWave + " ended!")
+                                        .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD) // أخضر وعريض
+                        )
+                );
+
+                player.connection.send(
+                        new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(
+                                10, // fade in
+                                60, // stay
+                                10  // fade out
+                        )
+                );
+            }
         }
+
+
+
 
         // إعادة تعيين متغيرات الـWave
         allZombies.clear();
