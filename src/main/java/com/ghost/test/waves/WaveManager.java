@@ -7,9 +7,8 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -22,18 +21,18 @@ public class WaveManager {
     private int currentWave = 0;
     private boolean waveActive = false;
 
-    private final List<Zombie> allZombies = new ArrayList<>();
-    private final List<Zombie> activeZombies = new ArrayList<>();
+    private final List<Mob> allMobs = new ArrayList<>();
+    private final List<Mob> activeMobs = new ArrayList<>();
 
     // إعدادات الـspawn
-    private int spawnDelayTicks = 20; // عدد ticks بين كل Zombie
+    private int spawnDelayTicks = 20;
     private int tickCounter = 0;
     private int spawnIndex = 0;
 
     private List<BlockPos> markerPositions = new ArrayList<>();
     private Level currentLevel;
 
-    private int numberOfZombies = 0; // عدد الزومبي المطلوب في الويف
+    private int numberOfMobs = 0;
 
     public void startNextWave(Level level, List<BlockPos> markers) {
         if (markers.isEmpty() || waveActive) return;
@@ -43,53 +42,46 @@ public class WaveManager {
         spawnIndex = 0;
         tickCounter = 0;
 
-        allZombies.clear();
-        activeZombies.clear();
+        allMobs.clear();
+        activeMobs.clear();
         this.markerPositions = markers;
         this.currentLevel = level;
 
-        numberOfZombies = currentWave * 5;
+        numberOfMobs = currentWave * 5;
         Random random = new Random();
 
-        // Reset kills لكل لاعب في بداية الويف
+        // Reset kills لكل لاعب
         for (Player p : currentLevel.players()) {
             if (p instanceof ServerPlayer player) {
-                // Title
                 player.connection.send(
                         new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
                                 Component.literal(" Wave " + currentWave + " Started! : ")
-                                        .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD) // لون دهبي وخط عريض
+                                        .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
                         )
                 );
 
-                // Subtitle
                 player.connection.send(
                         new net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket(
                                 Component.literal("🎉 Get Ready!!!!")
-                                        .withStyle(ChatFormatting.AQUA) // لون أزرق فاتح
+                                        .withStyle(ChatFormatting.AQUA)
                         )
                 );
 
-                // Animation (fade in/out)
                 player.connection.send(
                         new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(
-                                10,   // fade in
-                                60,   // stay
-                                10    // fade out
+                                10, 60, 10
                         )
                 );
             }
         }
 
-
-        // الأول نضيف الأنواع الخاصة
+        // موبات خاصة من WaveMobRegistry
         for (WaveMobType mobType : WaveMobRegistry.MOB_TYPES) {
             if (currentWave >= mobType.minWave) {
-                int count = Math.min(mobType.maxPerWave, currentWave); // عدد الأنواع الخاصة
+                int count = Math.min(mobType.maxPerWave, currentWave);
                 for (int i = 0; i < count; i++) {
-                    var mob = mobType.type.create(level);
+                    Mob mob = mobType.type.create(level);
                     if (mob != null) {
-                        // تطبيق الإعدادات (health, speed)
                         if (mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH) != null) {
                             mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(mobType.health);
                         }
@@ -99,70 +91,73 @@ public class WaveManager {
                             mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED).setBaseValue(mobType.speed);
                         }
 
-                        mob.getPersistentData().putBoolean("WaveZombie", true);
-                        allZombies.add((Zombie) mob);
-                        activeZombies.add((Zombie) mob);
+                        // الاسم من WaveMobRegistry
+                        mob.setCustomName(mobType.displayName);
+                        mob.setCustomNameVisible(true);
+
+                        mob.getPersistentData().putBoolean("WaveMob", true);
+                        allMobs.add(mob);
+                        activeMobs.add(mob);
                     }
+
                 }
             }
         }
 
-// نملأ الباقي بزومبي عادي
-        int remaining = numberOfZombies - allZombies.size();
+        // نملأ الباقي بزومبي عادي
+        int remaining = numberOfMobs - allMobs.size();
         for (int i = 0; i < remaining; i++) {
             Zombie zombie = EntityType.ZOMBIE.create(level);
             if (zombie != null) {
-                zombie.getPersistentData().putBoolean("WaveZombie", true);
-                allZombies.add(zombie);
-                activeZombies.add(zombie);
+                zombie.setCustomName(Component.literal("Zombie").withStyle(ChatFormatting.GRAY));
+                zombie.setCustomNameVisible(true);
+
+                zombie.getPersistentData().putBoolean("WaveMob", true);
+                allMobs.add(zombie);
+                activeMobs.add(zombie);
             }
         }
-
     }
 
-    // دالة تتنادى كل tick للتحكم في الـspawn بالتأخير
+    // دالة تتنادى كل tick
     public void tick() {
-        if (!waveActive || allZombies.isEmpty() || currentLevel == null) return;
+        if (!waveActive || allMobs.isEmpty() || currentLevel == null) return;
 
         tickCounter++;
         if (tickCounter < spawnDelayTicks) return;
         tickCounter = 0;
 
-        if (spawnIndex >= allZombies.size()) return;
+        if (spawnIndex >= allMobs.size()) return;
 
-        Zombie zombie = allZombies.get(spawnIndex);
-        if (zombie != null && !zombie.isAddedToWorld()) {
+        Mob mob = allMobs.get(spawnIndex);
+        if (mob != null && !mob.isAddedToWorld()) {
             Random random = new Random();
             BlockPos markerPos = markerPositions.get(random.nextInt(markerPositions.size()));
-            zombie.moveTo(markerPos.getX() + 0.5, markerPos.getY() + 1, markerPos.getZ() + 0.5, 0.0F, 0.0F);
-            currentLevel.addFreshEntity(zombie);
+            mob.moveTo(markerPos.getX() + 0.5, markerPos.getY() + 1, markerPos.getZ() + 0.5, 0.0F, 0.0F);
+            currentLevel.addFreshEntity(mob);
         }
 
         spawnIndex++;
     }
 
-    // دالة تستدعى عند قتل زومبي
     public void onZombieKilled(Player player) {
         if (!waveActive) return;
 
         int kills = WaveKillCounter.getKills(player);
 
-
-        if (kills >= numberOfZombies) {
+        if (kills >= numberOfMobs) {
             endWave();
         }
     }
 
-    // التحقق من انتهاء Wave
     public void checkWaveStatus() {
-        activeZombies.removeIf(z -> z.isRemoved() || !z.getPersistentData().getBoolean("WaveZombie"));
+        activeMobs.removeIf(z -> z.isRemoved() || !z.getPersistentData().getBoolean("WaveMob"));
 
-        if (activeZombies.isEmpty() && waveActive) {
+        if (activeMobs.isEmpty() && waveActive) {
             endWave();
         }
     }
 
-    // إنهاء الويف
     private void endWave() {
         waveActive = false;
 
@@ -171,25 +166,19 @@ public class WaveManager {
                 player.connection.send(
                         new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
                                 Component.literal("✅ Wave " + currentWave + " ended!")
-                                        .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD) // أخضر وعريض
+                                        .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD)
                         )
                 );
 
                 player.connection.send(
                         new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(
-                                10, // fade in
-                                60, // stay
-                                10  // fade out
+                                10, 60, 10
                         )
                 );
             }
         }
 
-
-
-
-        // إعادة تعيين متغيرات الـWave
-        allZombies.clear();
+        allMobs.clear();
         currentLevel = null;
     }
 
@@ -204,13 +193,13 @@ public class WaveManager {
     public void resetWaves() {
         currentWave = 0;
         waveActive = false;
-        allZombies.clear();
-        activeZombies.clear();
+        allMobs.clear();
+        activeMobs.clear();
         markerPositions.clear();
         currentLevel = null;
         spawnIndex = 0;
         tickCounter = 0;
-        numberOfZombies = 0;
+        numberOfMobs = 0;
     }
 
     public void setSpawnDelayTicks(int ticks) {
@@ -219,5 +208,12 @@ public class WaveManager {
 
     public int getSpawnDelayTicks() {
         return spawnDelayTicks;
+    }
+
+    private String getMobName(EntityType<?> type) {
+        if (type == EntityType.ZOMBIE) return "Zombie";
+        if (type == EntityType.CREEPER) return "Creeper";
+        if (type == EntityType.HUSK) return "Husk";
+        return type.toShortString();
     }
 }
