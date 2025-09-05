@@ -1,6 +1,7 @@
 package com.ghost.test.waves;
 
 import com.ghost.test.Test;
+import com.ghost.test.waves.marks.BlockMarkerItem;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;

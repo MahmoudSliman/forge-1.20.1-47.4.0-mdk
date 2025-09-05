@@ -1,7 +1,9 @@
-package com.ghost.test.waves;
+package com.ghost.test.waves.marks;
 
+import com.ghost.test.waves.MarkerData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -24,17 +26,21 @@ public class BlockMarkerItem extends Item {
     public InteractionResult useOn(UseOnContext context) {
         Level level = context.getLevel();
         Player player = context.getPlayer();
-        BlockPos pos = context.getClickedPos(); // مكان البلوك اللي ضغط عليه
+        BlockPos pos = context.getClickedPos();
 
         if (!level.isClientSide && player != null) {
-            savedPositions.add(pos); // نضيف الإحداثيات للقائمة
-            player.sendSystemMessage(Component.literal(
-                    "تم تسجيل الماركر عند: X=" + pos.getX() + " Y=" + pos.getY() + " Z=" + pos.getZ()
-            ));
+            if (level instanceof ServerLevel serverLevel) {
+                MarkerData data = MarkerData.get(serverLevel);
+                data.add(pos);
+                player.sendSystemMessage(Component.literal(
+                        "Marker registered at: X=" + pos.getX() + " Y=" + pos.getY() + " Z=" + pos.getZ()
+                ));
+            }
         }
 
         return InteractionResult.SUCCESS;
     }
+
 
     // نرجع كل الماركرز
     public static List<BlockPos> getSavedPositions() {

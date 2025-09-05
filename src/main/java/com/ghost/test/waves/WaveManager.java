@@ -6,6 +6,7 @@ import com.ghost.test.mob.WaveMobType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -19,13 +20,10 @@ import java.util.List;
 import java.util.Random;
 
 public class WaveManager {
-    private int currentWave = 0;
-    private boolean waveActive = false;
-
     private final List<Mob> allMobs = new ArrayList<>();
     private final List<Mob> activeMobs = new ArrayList<>();
 
-    // إعدادات الـspawn
+    // إعدادات الـ spawn
     private int spawnDelayTicks = 20;
     private int tickCounter = 0;
     private int spawnIndex = 0;
@@ -36,10 +34,14 @@ public class WaveManager {
     private int numberOfMobs = 0;
 
     public void startNextWave(Level level, List<BlockPos> markers) {
-        if (markers.isEmpty() || waveActive) return;
+        if (markers.isEmpty() || isWaveActive()) return;
 
-        waveActive = true;
-        currentWave++;
+        if (level instanceof ServerLevel serverLevel) {
+            WaveProgressData data = WaveProgressData.get(serverLevel);
+            data.setCurrentWave(data.getCurrentWave() + 1);
+            data.setWaveActive(true);
+        }
+
         spawnIndex = 0;
         tickCounter = 0;
 
@@ -48,15 +50,15 @@ public class WaveManager {
         this.markerPositions = markers;
         this.currentLevel = level;
 
-        numberOfMobs = currentWave * 5;
+        numberOfMobs = getCurrentWave() * 5;
         Random random = new Random();
 
-        // Reset kills لكل لاعب
+        // Reset kills لكل لاعب + عرض عنوان البداية
         for (Player p : currentLevel.players()) {
             if (p instanceof ServerPlayer player) {
                 player.connection.send(
                         new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
-                                Component.literal(" Wave " + currentWave + " Started! : ")
+                                Component.literal(" Wave " + getCurrentWave() + " Started! : ")
                                         .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
                         )
                 );
@@ -78,15 +80,15 @@ public class WaveManager {
 
         // موبات خاصة من WaveMobRegistry
         for (WaveMobType mobType : WaveMobRegistry.MOB_TYPES) {
-            if (currentWave >= mobType.getMinWave()) {
-                int count = Math.min(mobType.getMaxPerWaveForWave(currentWave), currentWave);
+            if (getCurrentWave() >= mobType.getMinWave()) {
+                int count = Math.min(mobType.getMaxPerWaveForWave(getCurrentWave()), getCurrentWave());
 
                 for (int i = 0; i < count; i++) {
                     Mob mob = (Mob) mobType.getEntityType().create(level);
                     if (mob != null) {
-                        double health = mobType.getHealthForWave(currentWave);
-                        double speed = mobType.getSpeedForWave(currentWave);
-                        double damage = mobType.getDamageForWave(currentWave);
+                        double health = mobType.getHealthForWave(getCurrentWave());
+                        double speed = mobType.getSpeedForWave(getCurrentWave());
+                        double damage = mobType.getDamageForWave(getCurrentWave());
 
                         if (mob.getAttribute(Attributes.MAX_HEALTH) != null) {
                             mob.getAttribute(Attributes.MAX_HEALTH).setBaseValue(health);
@@ -116,9 +118,6 @@ public class WaveManager {
             }
         }
 
-
-
-
         // نملأ الباقي بزومبي عادي
         int remaining = numberOfMobs - allMobs.size();
         for (int i = 0; i < remaining; i++) {
@@ -136,7 +135,7 @@ public class WaveManager {
 
     // دالة تتنادى كل tick
     public void tick() {
-        if (!waveActive || allMobs.isEmpty() || currentLevel == null) return;
+        if (!isWaveActive() || allMobs.isEmpty() || currentLevel == null) return;
 
         tickCounter++;
         if (tickCounter < spawnDelayTicks) return;
@@ -156,7 +155,7 @@ public class WaveManager {
     }
 
     public void onZombieKilled(Player player) {
-        if (!waveActive) return;
+        if (!isWaveActive()) return;
 
         int kills = WaveKillCounter.getKills(player);
 
@@ -168,19 +167,22 @@ public class WaveManager {
     public void checkWaveStatus() {
         activeMobs.removeIf(z -> z.isRemoved() || !z.getPersistentData().getBoolean("WaveMob"));
 
-        if (activeMobs.isEmpty() && waveActive) {
+        if (activeMobs.isEmpty() && isWaveActive()) {
             endWave();
         }
     }
 
     private void endWave() {
-        waveActive = false;
+        if (currentLevel instanceof ServerLevel serverLevel) {
+            WaveProgressData data = WaveProgressData.get(serverLevel);
+            data.setWaveActive(false);
+        }
 
         for (Player p : currentLevel.players()) {
             if (p instanceof ServerPlayer player) {
                 player.connection.send(
                         new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
-                                Component.literal("✅ Wave " + currentWave + " ended!")
+                                Component.literal("✅ Wave " + getCurrentWave() + " ended!")
                                         .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD)
                         )
                 );
@@ -198,16 +200,26 @@ public class WaveManager {
     }
 
     public boolean isWaveActive() {
-        return waveActive;
+        if (currentLevel instanceof ServerLevel serverLevel) {
+            return WaveProgressData.get(serverLevel).isWaveActive();
+        }
+        return false;
     }
 
     public int getCurrentWave() {
-        return currentWave;
+        if (currentLevel instanceof ServerLevel serverLevel) {
+            return WaveProgressData.get(serverLevel).getCurrentWave();
+        }
+        return 0;
     }
 
     public void resetWaves() {
-        currentWave = 0;
-        waveActive = false;
+        if (currentLevel instanceof ServerLevel serverLevel) {
+            WaveProgressData data = WaveProgressData.get(serverLevel);
+            data.setCurrentWave(0);
+            data.setWaveActive(false);
+        }
+
         allMobs.clear();
         activeMobs.clear();
         markerPositions.clear();

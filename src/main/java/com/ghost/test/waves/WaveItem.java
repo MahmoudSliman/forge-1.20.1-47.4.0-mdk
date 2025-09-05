@@ -1,7 +1,9 @@
 package com.ghost.test.waves;
 
+import com.ghost.test.waves.marks.BlockMarkerItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
@@ -23,23 +25,25 @@ public class WaveItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         if (!level.isClientSide) {
             if (waveManager.isWaveActive()) {
-                player.sendSystemMessage(Component.literal("⚠ Wave شغالة دلوقتي! استنى لما تخلص."));
+                player.sendSystemMessage(Component.literal("⚠ Wave is active now! Wait until it finishes."));
                 return InteractionResultHolder.sidedSuccess(player.getItemInHand(hand), level.isClientSide());
             }
 
-            List<BlockPos> markers = BlockMarkerItem.getSavedPositions();
+            if (level instanceof ServerLevel serverLevel) {
+                List<BlockPos> markers = com.ghost.test.waves.MarkerData.get(serverLevel).getAll();
 
-            if (!markers.isEmpty()) {
-                waveManager.startNextWave(level, markers);
-                player.sendSystemMessage(Component.literal(
-                        "بدأ لاويف رقم " + waveManager.getCurrentWave() +
-                                " عند " + markers.size() + " ماركرز مسجلة."
-                ));
-            } else {
-                player.sendSystemMessage(Component.literal("⚠ لازم تحدد على الأقل ماركر واحد!"));
+                if (!markers.isEmpty()) {
+                    waveManager.startNextWave(level, markers);
+                    player.sendSystemMessage(Component.literal(
+                            "Wave " + waveManager.getCurrentWave() + " Started!"
+                    ));
+                } else {
+                    player.sendSystemMessage(Component.literal("⚠ At least one marker is required!"));
+                }
             }
         }
 
         return InteractionResultHolder.sidedSuccess(player.getItemInHand(hand), level.isClientSide());
     }
+
 }
