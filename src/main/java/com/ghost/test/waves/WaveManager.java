@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -77,32 +78,46 @@ public class WaveManager {
 
         // موبات خاصة من WaveMobRegistry
         for (WaveMobType mobType : WaveMobRegistry.MOB_TYPES) {
-            if (currentWave >= mobType.minWave) {
-                int count = Math.min(mobType.maxPerWave, currentWave);
+            if (currentWave >= mobType.getMinWave()) {
+                int count = Math.min(mobType.getMaxPerWaveForWave(currentWave), currentWave);
+
                 for (int i = 0; i < count; i++) {
-                    Mob mob = mobType.type.create(level);
+                    Mob mob = (Mob) mobType.getEntityType().create(level);
                     if (mob != null) {
-                        if (mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH) != null) {
-                            mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(mobType.health);
-                        }
-                        mob.setHealth((float) mobType.health);
+                        double health = mobType.getHealthForWave(currentWave);
+                        double speed = mobType.getSpeedForWave(currentWave);
+                        double damage = mobType.getDamageForWave(currentWave);
 
-                        if (mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED) != null) {
-                            mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED).setBaseValue(mobType.speed);
+                        if (mob.getAttribute(Attributes.MAX_HEALTH) != null) {
+                            mob.getAttribute(Attributes.MAX_HEALTH).setBaseValue(health);
+                        }
+                        mob.setHealth((float) health);
+
+                        if (mob.getAttribute(Attributes.MOVEMENT_SPEED) != null) {
+                            mob.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(speed);
                         }
 
-                        // الاسم من WaveMobRegistry
-                        mob.setCustomName(mobType.displayName);
+                        if (mob.getAttribute(Attributes.ATTACK_DAMAGE) != null) {
+                            mob.getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(damage);
+                        }
+
+                        mob.setCustomName(mobType.getDisplayName());
                         mob.setCustomNameVisible(true);
 
                         mob.getPersistentData().putBoolean("WaveMob", true);
+
+                        // 🟢 هنا بيتفعل السلوك الإضافي (مثلاً استدعاء الزومبي الصغير)
+                        mobType.onSpawn(mob, level);
+
                         allMobs.add(mob);
                         activeMobs.add(mob);
                     }
-
                 }
             }
         }
+
+
+
 
         // نملأ الباقي بزومبي عادي
         int remaining = numberOfMobs - allMobs.size();

@@ -3,32 +3,54 @@ package com.ghost.test.mob;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.Level; // ✅ استخدم Level الصح مش java.util.logging.Level
 
-public class WaveMobType {
-    public final EntityType<? extends Mob> type;
-    public final double health;
-    public final double speed;
-    public final int minWave;
-    public final int maxPerWave;
-    public final Component displayName; // الاسم اللي يبان فوق الموب
+public abstract class WaveMobType {
+    private final EntityType<?> entityType;
+    private final double baseHealth;
+    private final double baseSpeed;
+    private final double baseDamage;
+    private final int minWave;
+    private final int baseMaxPerWave;
+    private final Component displayName;
 
-    public WaveMobType(EntityType<? extends Mob> type, double health, double speed, int minWave, int maxPerWave, Component displayName) {
-        this.type = type;
-        this.health = health;
-        this.speed = speed;
+    public WaveMobType(EntityType<?> entityType, double baseHealth, double baseSpeed, double baseDamage,
+                       int minWave, int baseMaxPerWave, Component displayName) {
+        this.entityType = entityType;
+        this.baseHealth = baseHealth;
+        this.baseSpeed = baseSpeed;
+        this.baseDamage = baseDamage;
         this.minWave = minWave;
-        this.maxPerWave = maxPerWave;
+        this.baseMaxPerWave = baseMaxPerWave;
         this.displayName = displayName;
     }
 
-// هنا نحسب الليمت الديناميكي
-    public int getLimitForWave(int currentWave) {
-        if (currentWave < minWave) {
-            return 0; // لسه ما يترسبنش
-        }
-        // مثال: بيزيد +1 كل ويف بعد minWave
-        return maxPerWave + (currentWave - minWave);
-        // لو عايز +2 كل ويف بدل +1:
-        // return maxPerWave + (currentWave - minWave) * 2;
+    public EntityType<?> getEntityType() { return entityType; }
+    public Component getDisplayName() { return displayName; }
+    public int getMinWave() { return minWave; }
+
+    // Health scaling (+5% per wave)
+    public double getHealthForWave(int wave) {
+        return baseHealth * Math.pow(1.05, wave - 1);
+    }
+
+    // Speed ثابت
+    public double getSpeedForWave(int wave) {
+        return baseSpeed;
+    }
+
+    // Damage scaling (+2% per wave)
+    public double getDamageForWave(int wave) {
+        return baseDamage * Math.pow(1.02, wave - 1);
+    }
+
+    // Max per wave scaling (+8% per wave)
+    public int getMaxPerWaveForWave(int wave) {
+        return (int) Math.ceil(baseMaxPerWave * Math.pow(1.08, wave - 1));
+    }
+
+    // 🟢 onSpawn الافتراضية (أي كلاس يقدر يعمل override لو عايز)
+    public void onSpawn(Mob mob, Level level) {
+        // افتراضي: مفيش حاجة
     }
 }
