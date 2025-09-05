@@ -4,8 +4,11 @@ import com.ghost.test.mob.WaveMobType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 
-public class FastZombie extends WaveMobType {
+import java.util.logging.Level;
+
+public class FastZombie extends CustomZombie {
     public FastZombie() {
         super(
                 EntityType.ZOMBIE,
@@ -16,5 +19,10 @@ public class FastZombie extends WaveMobType {
                 5,
                 Component.literal(" Fast Zombie").withStyle(ChatFormatting.AQUA)
         );
+    }
+
+    @Override
+    public void onSpawn(Mob mob, Level level) {
+
     }
 }

@@ -4,8 +4,11 @@ import com.ghost.test.mob.WaveMobType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 
-public class NormalZombie extends WaveMobType {
+import java.util.logging.Level;
+
+public class NormalZombie extends CustomZombie {
     public NormalZombie() {
         super(
                 EntityType.ZOMBIE,
@@ -16,6 +19,11 @@ public class NormalZombie extends WaveMobType {
                 Integer.MAX_VALUE,
                 Component.literal(" Zombie").withStyle(ChatFormatting.GRAY)
         );
+    }
+
+    @Override
+    public void onSpawn(Mob mob, Level level) {
+
     }
 }
 

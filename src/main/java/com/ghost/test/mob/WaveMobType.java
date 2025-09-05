@@ -53,4 +53,6 @@ public abstract class WaveMobType {
     public void onSpawn(Mob mob, Level level) {
         // افتراضي: مفيش حاجة
     }
+
+    public abstract void onSpawn(Mob mob, java.util.logging.Level level);
 }

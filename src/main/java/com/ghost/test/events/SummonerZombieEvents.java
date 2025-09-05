@@ -6,6 +6,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.entity.ai.goal.Goal;
 
 @Mod.EventBusSubscriber
 public class SummonerZombieEvents {
@@ -15,7 +16,6 @@ public class SummonerZombieEvents {
         if (event.getEntity() instanceof Zombie zombie) {
             if (zombie.hasCustomName() && zombie.getName().getString().contains("Summoner Zombie")) {
                 if (event.getLevel() instanceof ServerLevel serverLevel) {
-                    // إضافة الـ Goal الخاص بالاستدعاء
                     zombie.goalSelector.addGoal(1, new SummonBabiesGoal(zombie, serverLevel));
                 }
             }
@@ -23,7 +23,7 @@ public class SummonerZombieEvents {
     }
 
     // الكلاس الداخلي المسؤول عن الاستدعاء
-    static class SummonBabiesGoal extends net.minecraft.world.entity.ai.goal.Goal {
+    static class SummonBabiesGoal extends Goal {
         private final Zombie parent;
         private final ServerLevel level;
         private int cooldown = 0;
@@ -42,10 +42,7 @@ public class SummonerZombieEvents {
 
         @Override
         public void tick() {
-            if (cooldown > 0) {
-                cooldown--;
-                return;
-            }
+            if (cooldown > 0) { cooldown--; return; }
 
             if (summoned < 3) {
                 Zombie baby = EntityType.ZOMBIE.create(level);

@@ -4,8 +4,11 @@ import com.ghost.test.mob.WaveMobType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 
-public class ExplodingZombie extends WaveMobType {
+import java.util.logging.Level;
+
+public class ExplodingZombie extends CustomZombie {
     public ExplodingZombie() {
         super(
                 EntityType.ZOMBIE,
@@ -16,5 +19,10 @@ public class ExplodingZombie extends WaveMobType {
                 5,      // baseMaxPerWave
                 Component.literal(" Exploding Zombie").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
         );
+    }
+
+    @Override
+    public void onSpawn(Mob mob, Level level) {
+
     }
 }
